@@ -12,6 +12,10 @@ import EditList from "./pages/EditList";
 import CalculateTotals from "./pages/CalculateTotals";
 import CompareMarkets from "./pages/CompareMarkets";
 import Admin from "./pages/Admin";
+import AdminSupermarkets from "./pages/AdminSupermarkets";
+import AdminProducts from "./pages/AdminProducts";
+import AdminPrices from "./pages/AdminPrices";
+import AdminOCR from "./pages/AdminOCR";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -95,6 +99,38 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/supermarkets"
+            element={
+              <ProtectedRoute>
+                <AdminSupermarkets />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/products"
+            element={
+              <ProtectedRoute>
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/prices"
+            element={
+              <ProtectedRoute>
+                <AdminPrices />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ocr"
+            element={
+              <ProtectedRoute>
+                <AdminOCR />
               </ProtectedRoute>
             }
           />
