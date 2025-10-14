@@ -14,16 +14,334 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ocr_batch: {
+        Row: {
+          created_at: string
+          id: string
+          status: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocr_batch_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ocr_item: {
+        Row: {
+          batch_id: string
+          confidence: number | null
+          id: string
+          matched_product_id: string | null
+          meta: Json | null
+          raw_text: string | null
+        }
+        Insert: {
+          batch_id: string
+          confidence?: number | null
+          id?: string
+          matched_product_id?: string | null
+          meta?: Json | null
+          raw_text?: string | null
+        }
+        Update: {
+          batch_id?: string
+          confidence?: number | null
+          id?: string
+          matched_product_id?: string | null
+          meta?: Json | null
+          raw_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocr_item_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "ocr_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocr_item_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "product_master"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_master: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          ean: string | null
+          id: string
+          name: string
+          unit: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          ean?: string | null
+          id?: string
+          name: string
+          unit?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          ean?: string | null
+          id?: string
+          name?: string
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shopping_list: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_list_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopping_list_item: {
+        Row: {
+          id: string
+          list_id: string
+          notes: string | null
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          notes?: string | null
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopping_list_item_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shopping_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopping_list_item_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_master"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sku_price: {
+        Row: {
+          batch_id: string | null
+          captured_at: string
+          created_at: string
+          id: string
+          price: number
+          product_id: string
+          source: string | null
+          supermarket_id: string
+          unit_size: string | null
+        }
+        Insert: {
+          batch_id?: string | null
+          captured_at?: string
+          created_at?: string
+          id?: string
+          price: number
+          product_id: string
+          source?: string | null
+          supermarket_id: string
+          unit_size?: string | null
+        }
+        Update: {
+          batch_id?: string | null
+          captured_at?: string
+          created_at?: string
+          id?: string
+          price?: number
+          product_id?: string
+          source?: string | null
+          supermarket_id?: string
+          unit_size?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_price_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_price_supermarket_id_fkey"
+            columns: ["supermarket_id"]
+            isOneToOne: false
+            referencedRelation: "supermarkets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supermarkets: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          created_at: string
+          geolocation: Json | null
+          id: string
+          name: string
+          status: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          created_at?: string
+          geolocation?: Json | null
+          id?: string
+          name: string
+          status?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          created_at?: string
+          geolocation?: Json | null
+          id?: string
+          name?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      rpc_calculate_totals: {
+        Args: { p_list_id: string }
+        Returns: {
+          found_count: number
+          missing_count: number
+          supermarket_id: string
+          supermarket_name: string
+          total_amount: number
+        }[]
+      }
+      rpc_compare_two_markets: {
+        Args: { p_list_id: string; p_market_a: string; p_market_b: string }
+        Returns: {
+          cheaper: string
+          missing_in: string[]
+          price_a: number
+          price_b: number
+          product_id: string
+          product_name: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "user" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +468,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["user", "admin"],
+    },
   },
 } as const
