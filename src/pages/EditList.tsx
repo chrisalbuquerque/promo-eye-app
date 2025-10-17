@@ -61,8 +61,7 @@ export default function EditList() {
           *,
           product_master(*)
         `)
-        .eq("list_id", id)
-        .order("created_at", { ascending: true });
+        .eq("list_id", id);
       if (error) throw error;
       return data || [];
     },

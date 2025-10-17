@@ -31,17 +31,39 @@ export default function SearchProducts() {
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["products", searchQuery],
     queryFn: async () => {
-      let query = supabase.from("product_master").select("*");
+      if (!searchQuery) return [];
       
-      if (searchQuery) {
-        query = query.or(
-          `name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,ean.eq.${searchQuery}`
-        );
-      }
+      // Remover acentos para busca
+      const normalizeString = (str: string) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      };
       
-      const { data, error } = await query.order("name").limit(50);
+      const normalizedQuery = normalizeString(searchQuery);
+      
+      // Buscar todos os produtos e filtrar no cliente
+      const { data, error } = await supabase
+        .from("product_master")
+        .select("*")
+        .or(`name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,ean.eq.${searchQuery}`)
+        .order("name")
+        .limit(200);
+      
       if (error) throw error;
-      return data || [];
+      
+      // Filtrar produtos removendo acentos
+      const filtered = (data || []).filter((product) => {
+        const normalizedName = normalizeString(product.name || "");
+        const normalizedBrand = normalizeString(product.brand || "");
+        const normalizedEan = product.ean || "";
+        
+        return (
+          normalizedName.includes(normalizedQuery) ||
+          normalizedBrand.includes(normalizedQuery) ||
+          normalizedEan === searchQuery
+        );
+      });
+      
+      return filtered.slice(0, 50);
     },
     enabled: searchQuery.length >= 2,
   });

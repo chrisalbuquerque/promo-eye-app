@@ -76,8 +76,8 @@ export default function CompareMarkets() {
   };
 
   const getCheaperBadge = (cheaper: string | null) => {
-    if (cheaper === "A") return <Badge variant="success">Mercado A</Badge>;
-    if (cheaper === "B") return <Badge variant="success">Mercado B</Badge>;
+    if (cheaper === "A") return <Badge variant="success">{marketAName}</Badge>;
+    if (cheaper === "B") return <Badge variant="success">{marketBName}</Badge>;
     if (cheaper === "equal") return <Badge variant="outline">Igual</Badge>;
     return null;
   };
@@ -208,7 +208,7 @@ export default function CompareMarkets() {
                               {item.product_name}
                               {item.missing_in?.length > 0 && (
                                 <div className="text-xs text-destructive mt-1">
-                                  Faltante em: {item.missing_in.join(", ")}
+                                  Faltante em: {item.missing_in.map((m: string) => m === "A" ? marketAName : marketBName).join(", ")}
                                 </div>
                               )}
                             </div>
