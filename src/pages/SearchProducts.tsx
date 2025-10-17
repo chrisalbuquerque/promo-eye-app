@@ -33,36 +33,39 @@ export default function SearchProducts() {
     queryFn: async () => {
       if (!searchQuery) return [];
       
-      // Remover acentos para busca
+      // Função para remover acentos
       const normalizeString = (str: string) => {
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       };
       
       const normalizedQuery = normalizeString(searchQuery);
       
-      // Buscar todos os produtos e filtrar no cliente
+      // Buscar todos os produtos (sem filtro de texto no Supabase)
+      // para poder aplicar a normalização no cliente
       const { data, error } = await supabase
         .from("product_master")
         .select("*")
-        .or(`name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,ean.eq.${searchQuery}`)
-        .order("name")
-        .limit(200);
+        .order("name");
       
       if (error) throw error;
       
-      // Filtrar produtos removendo acentos
+      // Filtrar produtos removendo acentos tanto da busca quanto dos dados
       const filtered = (data || []).filter((product) => {
         const normalizedName = normalizeString(product.name || "");
         const normalizedBrand = normalizeString(product.brand || "");
-        const normalizedEan = product.ean || "";
+        const ean = product.ean || "";
         
+        // Busca por EAN exato (sem normalização)
+        if (ean === searchQuery) return true;
+        
+        // Busca por nome ou marca (com normalização)
         return (
           normalizedName.includes(normalizedQuery) ||
-          normalizedBrand.includes(normalizedQuery) ||
-          normalizedEan === searchQuery
+          normalizedBrand.includes(normalizedQuery)
         );
       });
       
+      // Retornar apenas os primeiros 50 resultados
       return filtered.slice(0, 50);
     },
     enabled: searchQuery.length >= 2,
