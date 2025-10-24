@@ -49,7 +49,9 @@ export default function AdminOCR() {
     if (!files || files.length === 0) return;
 
     try {
-      // Create batch
+      toast.info("Enviando imagens...");
+
+      // Criar lote
       const { data: batch, error: batchError } = await supabase
         .from("ocr_batch")
         .insert({
@@ -61,14 +63,57 @@ export default function AdminOCR() {
 
       if (batchError) throw batchError;
 
-      toast.success(`Lote criado! ${files.length} arquivo(s) prontos para processamento.`);
+      // Upload das imagens para o storage
+      const uploadedFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = `${batch.id}/${Date.now()}_${i}_${file.name}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("ocr-images")
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error("Erro ao fazer upload:", uploadError);
+          throw new Error(`Erro ao enviar ${file.name}: ${uploadError.message}`);
+        }
+
+        uploadedFiles.push({ path: fileName });
+      }
+
+      toast.success(`${files.length} imagem(ns) enviada(s)! Processando...`);
+      
+      // Chamar edge function para processar OCR
+      const { data: processResult, error: processError } = await supabase.functions.invoke(
+        "process-ocr",
+        {
+          body: {
+            batchId: batch.id,
+            imageFiles: uploadedFiles,
+          },
+        }
+      );
+
+      if (processError) throw processError;
+
+      if (processResult.errors && processResult.errors.length > 0) {
+        toast.warning(
+          `Processamento concluído com ${processResult.errors.length} erro(s). ${processResult.processedCount} de ${processResult.totalCount} imagens processadas.`
+        );
+      } else {
+        toast.success(
+          `Processamento concluído! ${processResult.processedCount} imagens processadas com sucesso.`
+        );
+      }
       
       queryClient.invalidateQueries({ queryKey: ["admin-ocr-batches"] });
-
-      // Note: Actual OCR processing would be done via Google Vision API in an edge function
-      toast.info("Para processar OCR, integre com Google Cloud Vision API");
+      queryClient.invalidateQueries({ queryKey: ["admin-ocr-items"] });
+      
+      // Limpar input
+      e.target.value = "";
     } catch (error: any) {
-      toast.error("Erro ao criar lote: " + error.message);
+      console.error("Erro no upload/processamento:", error);
+      toast.error("Erro: " + (error.message || "Erro desconhecido"));
     }
   };
 
@@ -123,7 +168,7 @@ export default function AdminOCR() {
                 </label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Nota: Integração com Google Cloud Vision necessária
+                Processamento automático via OpenAI Vision API
               </p>
             </div>
           </CardContent>
