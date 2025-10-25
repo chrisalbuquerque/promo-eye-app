@@ -7,10 +7,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
 
 export default function AdminOCR() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedSupermarket, setSelectedSupermarket] = useState<string>("");
 
   const { data: batches, isLoading } = useQuery({
     queryKey: ["admin-ocr-batches"],
@@ -20,6 +23,20 @@ export default function AdminOCR() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
+
+  const { data: supermarkets } = useQuery({
+    queryKey: ["supermarkets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("supermarkets")
+        .select("*")
+        .eq("status", "active")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -48,6 +65,11 @@ export default function AdminOCR() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    if (!selectedSupermarket) {
+      toast.error("Selecione um supermercado antes de enviar as imagens");
+      return;
+    }
+
     try {
       toast.info("Enviando imagens...");
 
@@ -67,7 +89,13 @@ export default function AdminOCR() {
       const uploadedFiles = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileName = `${batch.id}/${Date.now()}_${i}_${file.name}`;
+        // Sanitizar nome do arquivo removendo caracteres especiais
+        const sanitizedName = file.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+          .replace(/[^a-zA-Z0-9._-]/g, "_"); // Substitui caracteres especiais por _
+        
+        const fileName = `${batch.id}/${Date.now()}_${i}_${sanitizedName}`;
         
         const { error: uploadError } = await supabase.storage
           .from("ocr-images")
@@ -90,6 +118,7 @@ export default function AdminOCR() {
           body: {
             batchId: batch.id,
             imageFiles: uploadedFiles,
+            supermarketId: selectedSupermarket,
           },
         }
       );
@@ -144,32 +173,53 @@ export default function AdminOCR() {
             <CardTitle>Upload de Imagens</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 space-y-4">
-              <ImageIcon className="h-12 w-12 text-muted-foreground" />
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Envie imagens de prateleiras ou panfletos (PNG, JPG)
-                </p>
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Button asChild>
-                    <span>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Selecionar Imagens
-                    </span>
-                  </Button>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Supermercado
                 </label>
+                <Select value={selectedSupermarket} onValueChange={setSelectedSupermarket}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o supermercado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supermarkets?.map((market) => (
+                      <SelectItem key={market.id} value={market.id}>
+                        {market.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Processamento automático via OpenAI Vision API
-              </p>
+              
+              <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 space-y-4">
+                <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Envie imagens de prateleiras ou panfletos (PNG, JPG)
+                  </p>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <Button asChild disabled={!selectedSupermarket}>
+                      <span>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Selecionar Imagens
+                      </span>
+                    </Button>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      disabled={!selectedSupermarket}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Processamento automático via OpenAI Vision API
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

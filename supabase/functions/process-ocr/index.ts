@@ -13,10 +13,14 @@ serve(async (req) => {
   }
 
   try {
-    const { batchId, imageFiles } = await req.json();
+    const { batchId, imageFiles, supermarketId } = await req.json();
     
     if (!batchId || !imageFiles || imageFiles.length === 0) {
       throw new Error("Batch ID e imagens são obrigatórios");
+    }
+
+    if (!supermarketId) {
+      throw new Error("Supermercado é obrigatório");
     }
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -116,21 +120,87 @@ serve(async (req) => {
           }];
         }
 
-        // Inserir itens no banco
+        // Processar cada item extraído
         for (const item of items) {
-          await supabase
-            .from('ocr_item')
-            .insert({
-              batch_id: batchId,
-              raw_text: `${item.name || ''} ${item.brand || ''}`.trim(),
-              confidence: item.confidence || 0.8,
-              meta: {
-                image_path: imageFile.path,
-                extracted_price: item.price,
-                extracted_name: item.name,
-                extracted_brand: item.brand
+          try {
+            let productId = null;
+            const normalizedName = item.name?.toLowerCase().trim();
+            const normalizedBrand = item.brand?.toLowerCase().trim();
+
+            // Buscar produto existente por nome e marca
+            if (normalizedName) {
+              const { data: existingProducts } = await supabase
+                .from('product_master')
+                .select('id, name, brand')
+                .ilike('name', `%${normalizedName}%`);
+
+              // Encontrar melhor match considerando marca se disponível
+              if (existingProducts && existingProducts.length > 0) {
+                if (normalizedBrand) {
+                  const exactMatch = existingProducts.find(p => 
+                    p.brand?.toLowerCase().includes(normalizedBrand)
+                  );
+                  productId = exactMatch?.id || existingProducts[0].id;
+                } else {
+                  productId = existingProducts[0].id;
+                }
               }
-            });
+            }
+
+            // Se produto não existe e temos informações suficientes, criar novo
+            if (!productId && normalizedName && item.confidence >= 0.7) {
+              const { data: newProduct, error: createError } = await supabase
+                .from('product_master')
+                .insert({
+                  name: item.name,
+                  brand: item.brand || null,
+                })
+                .select()
+                .single();
+
+              if (!createError && newProduct) {
+                productId = newProduct.id;
+                console.log(`Novo produto criado: ${item.name} (${productId})`);
+              }
+            }
+
+            // Criar/atualizar preço se temos produto e preço válido
+            if (productId && item.price && item.price > 0) {
+              await supabase
+                .from('sku_price')
+                .insert({
+                  product_id: productId,
+                  supermarket_id: supermarketId,
+                  price: item.price,
+                  source: 'ocr',
+                  batch_id: batchId,
+                  captured_at: new Date().toISOString(),
+                });
+              
+              console.log(`Preço registrado: ${item.name} - R$ ${item.price}`);
+            }
+
+            // Inserir item OCR para revisão
+            await supabase
+              .from('ocr_item')
+              .insert({
+                batch_id: batchId,
+                raw_text: `${item.name || ''} ${item.brand || ''}`.trim(),
+                confidence: item.confidence || 0.8,
+                matched_product_id: productId,
+                meta: {
+                  image_path: imageFile.path,
+                  extracted_price: item.price,
+                  extracted_name: item.name,
+                  extracted_brand: item.brand,
+                  supermarket_id: supermarketId,
+                }
+              });
+
+          } catch (itemError) {
+            console.error(`Erro ao processar item ${item.name}:`, itemError);
+            // Continua processando outros itens mesmo se um falhar
+          }
         }
 
         processedCount++;
