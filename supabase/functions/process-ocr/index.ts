@@ -62,6 +62,11 @@ serve(async (req) => {
         const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
         // Chamar OpenAI Vision API
+        console.log('Chamando OpenAI Vision API...');
+        console.log('URL: https://api.openai.com/v1/chat/completions');
+        console.log('Modelo: gpt-4o');
+        console.log('Authorization header presente:', !!openAIApiKey);
+        
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -91,8 +96,13 @@ serve(async (req) => {
           }),
         });
 
+        console.log('OpenAI Response Status:', response.status);
+        console.log('OpenAI Response Status Text:', response.statusText);
+
         if (!response.ok) {
           const errorText = await response.text();
+          console.error('OpenAI API Error Response Body:', errorText);
+          console.error('OpenAI API Error Status:', response.status);
           throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
         }
 
