@@ -57,9 +57,16 @@ serve(async (req) => {
           throw new Error(`Erro ao baixar imagem: ${downloadError.message}`);
         }
 
-        // Converter para base64
+        // Converter para base64 de forma segura (sem estouro de stack)
         const arrayBuffer = await imageData.arrayBuffer();
-        const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const bytes = new Uint8Array(arrayBuffer);
+        const chunkSize = 0x8000; // 32KB
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        const base64Image = btoa(binary);
+        console.log('Imagem carregada. Tamanho (bytes):', bytes.length);
 
         // Chamar OpenAI Vision API
         console.log('Chamando OpenAI Vision API...');
