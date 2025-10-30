@@ -90,8 +90,3 @@ Para fazer deploy da aplicação, você pode usar plataformas como Vercel, Netli
 3. Faça commit das suas alterações (`git commit -m 'Adiciona nova feature'`)
 4. Faça push para a branch (`git push origin feature/NomeDaFeature`)
 5. Abra um Pull Request
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
