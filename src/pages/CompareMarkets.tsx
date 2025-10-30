@@ -25,7 +25,7 @@ export default function CompareMarkets() {
   const { isAdmin, loading: authLoading } = useAuth();
   const [marketA, setMarketA] = useState("");
   const [marketB, setMarketB] = useState("");
-  const [selectedCity, setSelectedCity] = useState<string>("");
+  const [selectedCity, setSelectedCity] = useState<string>("all");
 
   const { data: list } = useQuery({
     queryKey: ["shopping-list", id],
@@ -63,7 +63,7 @@ export default function CompareMarkets() {
         .select("*")
         .eq("status", "active");
       
-      if (selectedCity) {
+      if (selectedCity && selectedCity !== "all") {
         query = query.eq("city", selectedCity);
       }
       
@@ -147,7 +147,7 @@ export default function CompareMarkets() {
                   <SelectValue placeholder="Todas as cidades" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as cidades</SelectItem>
+                  <SelectItem value="all">Todas as cidades</SelectItem>
                   {cities?.map((city) => (
                     <SelectItem key={city} value={city}>
                       {city}

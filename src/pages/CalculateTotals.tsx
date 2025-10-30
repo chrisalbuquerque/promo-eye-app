@@ -23,7 +23,7 @@ export default function CalculateTotals() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin, loading: authLoading } = useAuth();
-  const [selectedCity, setSelectedCity] = useState<string>("");
+  const [selectedCity, setSelectedCity] = useState<string>("all");
 
   const { data: list } = useQuery({
     queryKey: ["shopping-list", id],
@@ -62,7 +62,7 @@ export default function CalculateTotals() {
       if (error) throw error;
       
       // Filtrar por cidade se selecionada
-      if (selectedCity && data) {
+      if (selectedCity && selectedCity !== "all" && data) {
         const { data: supermarkets } = await supabase
           .from("supermarkets")
           .select("id, city")
@@ -125,7 +125,7 @@ export default function CalculateTotals() {
                   <SelectValue placeholder="Todas as cidades" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as cidades</SelectItem>
+                  <SelectItem value="all">Todas as cidades</SelectItem>
                   {cities?.map((city) => (
                     <SelectItem key={city} value={city}>
                       {city}
