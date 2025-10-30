@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +23,7 @@ export default function CalculateTotals() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin, loading: authLoading } = useAuth();
+  const [selectedCity, setSelectedCity] = useState<string>("");
 
   const { data: list } = useQuery({
     queryKey: ["shopping-list", id],
@@ -35,13 +39,39 @@ export default function CalculateTotals() {
     enabled: !!id,
   });
 
+  const { data: cities } = useQuery({
+    queryKey: ["cities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("supermarkets")
+        .select("city")
+        .eq("status", "active")
+        .not("city", "is", null);
+      if (error) throw error;
+      const uniqueCities = [...new Set(data.map((s) => s.city))].filter(Boolean).sort();
+      return uniqueCities as string[];
+    },
+  });
+
   const { data: totals, isLoading: totalsLoading } = useQuery({
-    queryKey: ["calculate-totals", id],
+    queryKey: ["calculate-totals", id, selectedCity],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rpc_calculate_totals", {
         p_list_id: id,
       });
       if (error) throw error;
+      
+      // Filtrar por cidade se selecionada
+      if (selectedCity && data) {
+        const { data: supermarkets } = await supabase
+          .from("supermarkets")
+          .select("id, city")
+          .eq("city", selectedCity);
+        
+        const supermarketIds = new Set(supermarkets?.map(s => s.id));
+        return data.filter((t: any) => supermarketIds.has(t.supermarket_id));
+      }
+      
       return data || [];
     },
     enabled: !!id,
@@ -82,6 +112,30 @@ export default function CalculateTotals() {
             <p className="text-muted-foreground">Total por supermercado</p>
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtrar por Cidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="city">Cidade</Label>
+              <Select value={selectedCity} onValueChange={setSelectedCity}>
+                <SelectTrigger id="city">
+                  <SelectValue placeholder="Todas as cidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas as cidades</SelectItem>
+                  {cities?.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {totalsLoading && (
           <Card>

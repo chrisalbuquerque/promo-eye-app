@@ -33,6 +33,7 @@ export default function AdminSupermarkets() {
     name: "",
     cnpj: "",
     address: "",
+    city: "",
     status: "active",
   });
 
@@ -88,7 +89,7 @@ export default function AdminSupermarkets() {
   });
 
   const resetForm = () => {
-    setFormData({ name: "", cnpj: "", address: "", status: "active" });
+    setFormData({ name: "", cnpj: "", address: "", city: "", status: "active" });
     setEditingId(null);
   };
 
@@ -97,6 +98,7 @@ export default function AdminSupermarkets() {
       name: supermarket.name,
       cnpj: supermarket.cnpj || "",
       address: supermarket.address || "",
+      city: supermarket.city || "",
       status: supermarket.status || "active",
     });
     setEditingId(supermarket.id);
@@ -171,6 +173,15 @@ export default function AdminSupermarkets() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="city">Cidade *</Label>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}
@@ -212,9 +223,12 @@ export default function AdminSupermarkets() {
                     <div>
                       <h3 className="font-semibold">{supermarket.name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {supermarket.cnpj && `CNPJ: ${supermarket.cnpj}`}
-                        {supermarket.address && ` • ${supermarket.address}`}
+                        {supermarket.city && `${supermarket.city}`}
+                        {supermarket.cnpj && ` • CNPJ: ${supermarket.cnpj}`}
                       </p>
+                      {supermarket.address && (
+                        <p className="text-sm text-muted-foreground">{supermarket.address}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Status: {supermarket.status === "active" ? "Ativo" : "Inativo"}
                       </p>

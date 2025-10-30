@@ -213,7 +213,9 @@ export type Database = {
           captured_at: string
           created_at: string
           id: string
+          min_quantity: number | null
           price: number
+          price_type: string | null
           product_id: string
           source: string | null
           supermarket_id: string
@@ -224,7 +226,9 @@ export type Database = {
           captured_at?: string
           created_at?: string
           id?: string
+          min_quantity?: number | null
           price: number
+          price_type?: string | null
           product_id: string
           source?: string | null
           supermarket_id: string
@@ -235,7 +239,9 @@ export type Database = {
           captured_at?: string
           created_at?: string
           id?: string
+          min_quantity?: number | null
           price?: number
+          price_type?: string | null
           product_id?: string
           source?: string | null
           supermarket_id?: string
@@ -261,6 +267,7 @@ export type Database = {
       supermarkets: {
         Row: {
           address: string | null
+          city: string | null
           cnpj: string | null
           created_at: string
           geolocation: Json | null
@@ -270,6 +277,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          city?: string | null
           cnpj?: string | null
           created_at?: string
           geolocation?: Json | null
@@ -279,6 +287,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          city?: string | null
           cnpj?: string | null
           created_at?: string
           geolocation?: Json | null

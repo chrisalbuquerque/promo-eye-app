@@ -25,6 +25,7 @@ export default function CompareMarkets() {
   const { isAdmin, loading: authLoading } = useAuth();
   const [marketA, setMarketA] = useState("");
   const [marketB, setMarketB] = useState("");
+  const [selectedCity, setSelectedCity] = useState<string>("");
 
   const { data: list } = useQuery({
     queryKey: ["shopping-list", id],
@@ -40,14 +41,33 @@ export default function CompareMarkets() {
     enabled: !!id,
   });
 
-  const { data: supermarkets } = useQuery({
-    queryKey: ["supermarkets"],
+  const { data: cities } = useQuery({
+    queryKey: ["cities"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("supermarkets")
-        .select("*")
+        .select("city")
         .eq("status", "active")
-        .order("name");
+        .not("city", "is", null);
+      if (error) throw error;
+      const uniqueCities = [...new Set(data.map((s) => s.city))].filter(Boolean).sort();
+      return uniqueCities as string[];
+    },
+  });
+
+  const { data: supermarkets } = useQuery({
+    queryKey: ["supermarkets", selectedCity],
+    queryFn: async () => {
+      let query = supabase
+        .from("supermarkets")
+        .select("*")
+        .eq("status", "active");
+      
+      if (selectedCity) {
+        query = query.eq("city", selectedCity);
+      }
+      
+      const { data, error } = await query.order("name");
       if (error) throw error;
       return data || [];
     },
@@ -113,9 +133,31 @@ export default function CompareMarkets() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Selecione os Supermercados</CardTitle>
+            <CardTitle>Selecione a Cidade e os Supermercados</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Cidade</Label>
+              <Select value={selectedCity} onValueChange={(value) => {
+                setSelectedCity(value);
+                setMarketA("");
+                setMarketB("");
+              }}>
+                <SelectTrigger id="city">
+                  <SelectValue placeholder="Todas as cidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas as cidades</SelectItem>
+                  {cities?.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="marketA">Mercado A</Label>
               <Select value={marketA} onValueChange={setMarketA}>
@@ -146,6 +188,7 @@ export default function CompareMarkets() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
             </div>
           </CardContent>
         </Card>
@@ -214,10 +257,24 @@ export default function CompareMarkets() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(item.price_a)}
+                            <div>
+                              <div>{formatCurrency(item.price_a)}</div>
+                              {item.has_wholesale_a && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Atacado: {formatCurrency(item.wholesale_price_a)} (mín. {item.wholesale_qty_a} un.)
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(item.price_b)}
+                            <div>
+                              <div>{formatCurrency(item.price_b)}</div>
+                              {item.has_wholesale_b && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Atacado: {formatCurrency(item.wholesale_price_b)} (mín. {item.wholesale_qty_b} un.)
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             {getCheaperBadge(item.cheaper)}

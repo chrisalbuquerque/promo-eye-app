@@ -88,7 +88,7 @@ serve(async (req) => {
                 content: [
                   {
                     type: 'text',
-                    text: 'Analise esta imagem de prateleira de supermercado ou panfleto. Extraia todos os produtos visíveis com seus nomes, marcas e preços. Retorne no formato JSON com array "items", onde cada item tem: "name" (nome do produto), "brand" (marca), "price" (preço em número), "confidence" (confiança de 0 a 1). Se não conseguir identificar algum campo, use null.'
+                    text: 'Analise esta imagem de prateleira de supermercado ou panfleto. Extraia todos os produtos visíveis com seus nomes, marcas e preços. IMPORTANTE: Diferencie entre preços de ATACADO (necessita quantidade mínima) e VAREJO (preço unitário). Retorne no formato JSON com array "items", onde cada item tem: "name" (nome do produto), "brand" (marca), "retail_price" (preço varejo em número), "wholesale_price" (preço atacado em número ou null), "min_wholesale_qty" (quantidade mínima para atacado ou null), "confidence" (confiança de 0 a 1). Se não conseguir identificar algum campo, use null. IGNORE outros valores que não sejam atacado ou varejo.'
                   },
                   {
                     type: 'image_url',
@@ -181,20 +181,40 @@ serve(async (req) => {
               }
             }
 
-            // Criar/atualizar preço se temos produto e preço válido
-            if (productId && item.price && item.price > 0) {
+            // Criar/atualizar preço VAREJO se temos produto e preço válido
+            if (productId && item.retail_price && item.retail_price > 0) {
               await supabase
                 .from('sku_price')
                 .insert({
                   product_id: productId,
                   supermarket_id: supermarketId,
-                  price: item.price,
+                  price: item.retail_price,
+                  price_type: 'varejo',
+                  min_quantity: 1,
                   source: 'ocr',
                   batch_id: batchId,
                   captured_at: new Date().toISOString(),
                 });
               
-              console.log(`Preço registrado: ${item.name} - R$ ${item.price}`);
+              console.log(`Preço VAREJO registrado: ${item.name} - R$ ${item.retail_price}`);
+            }
+
+            // Criar/atualizar preço ATACADO se disponível
+            if (productId && item.wholesale_price && item.wholesale_price > 0 && item.min_wholesale_qty) {
+              await supabase
+                .from('sku_price')
+                .insert({
+                  product_id: productId,
+                  supermarket_id: supermarketId,
+                  price: item.wholesale_price,
+                  price_type: 'atacado',
+                  min_quantity: item.min_wholesale_qty,
+                  source: 'ocr',
+                  batch_id: batchId,
+                  captured_at: new Date().toISOString(),
+                });
+              
+              console.log(`Preço ATACADO registrado: ${item.name} - R$ ${item.wholesale_price} (mín. ${item.min_wholesale_qty} unidades)`);
             }
 
             // Inserir item OCR para revisão
@@ -207,7 +227,9 @@ serve(async (req) => {
                 matched_product_id: productId,
                 meta: {
                   image_path: imageFile.path,
-                  extracted_price: item.price,
+                  extracted_retail_price: item.retail_price,
+                  extracted_wholesale_price: item.wholesale_price,
+                  min_wholesale_qty: item.min_wholesale_qty,
                   extracted_name: item.name,
                   extracted_brand: item.brand,
                   supermarket_id: supermarketId,
