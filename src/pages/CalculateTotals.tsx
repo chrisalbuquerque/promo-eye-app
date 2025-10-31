@@ -18,12 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MissingProductsModal } from "@/components/MissingProductsModal";
 
 export default function CalculateTotals() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin, loading: authLoading } = useAuth();
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [selectedSupermarket, setSelectedSupermarket] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { data: list } = useQuery({
     queryKey: ["shopping-list", id],
@@ -84,9 +89,15 @@ export default function CalculateTotals() {
     }).format(value);
   };
 
-  const getCheapestBadge = (index: number) => {
+  const getCheapestBadge = (index: number, foundCount: number) => {
+    // Encontrar o maior found_count
+    const maxFoundCount = Math.max(...(totals?.map((t: any) => t.found_count) || [0]));
+    
+    // Só dar badge se tiver o máximo de produtos encontrados
+    if (foundCount < maxFoundCount) return null;
+    
     if (index === 0) return <Badge variant="success">Mais Barato</Badge>;
-    if (index === 1) return <Badge variant="success-outline">2º Mais Barato</Badge>;
+    if (index === 1) return <Badge variant="outline">2º Mais Barato</Badge>;
     return null;
   };
 
@@ -165,31 +176,48 @@ export default function CalculateTotals() {
         {totals && totals.length > 0 && (
           <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {totals.slice(0, 2).map((total: any, index: number) => (
-                <Card
-                  key={total.supermarket_id}
-                  className="border-primary/50 shadow-md bg-gradient-to-br from-success/5 to-background"
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg">{total.supermarket_name}</CardTitle>
-                      {getCheapestBadge(index)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-center justify-between text-3xl font-bold text-success">
-                      <span>{formatCurrency(total.total_amount)}</span>
-                      <TrendingDown className="h-8 w-8" />
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{total.found_count} encontrados</span>
-                      {total.missing_count > 0 && (
-                        <span className="text-destructive">{total.missing_count} faltantes</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {totals.slice(0, 2).map((total: any, index: number) => {
+                const badge = getCheapestBadge(index, total.found_count);
+                if (!badge) return null;
+                
+                return (
+                  <Card
+                    key={total.supermarket_id}
+                    className="border-primary/50 shadow-md bg-gradient-to-br from-success/5 to-background"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-lg">{total.supermarket_name}</CardTitle>
+                        {badge}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center justify-between text-3xl font-bold text-success">
+                        <span>{formatCurrency(total.total_amount)}</span>
+                        <TrendingDown className="h-8 w-8" />
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>{total.found_count} encontrados</span>
+                        {total.missing_count > 0 && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-destructive p-0 h-auto"
+                            onClick={() =>
+                              setSelectedSupermarket({
+                                id: total.supermarket_id,
+                                name: total.supermarket_name,
+                              })
+                            }
+                          >
+                            {total.missing_count} faltantes
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             <Card>
@@ -213,7 +241,7 @@ export default function CalculateTotals() {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               {total.supermarket_name}
-                              {getCheapestBadge(index)}
+                              {getCheapestBadge(index, total.found_count)}
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
@@ -221,7 +249,19 @@ export default function CalculateTotals() {
                           </TableCell>
                           <TableCell className="text-center">
                             {total.missing_count > 0 ? (
-                              <Badge variant="destructive">{total.missing_count}</Badge>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 h-auto"
+                                onClick={() =>
+                                  setSelectedSupermarket({
+                                    id: total.supermarket_id,
+                                    name: total.supermarket_name,
+                                  })
+                                }
+                              >
+                                <Badge variant="destructive">{total.missing_count}</Badge>
+                              </Button>
                             ) : (
                               <Badge variant="outline">0</Badge>
                             )}
@@ -254,6 +294,14 @@ export default function CalculateTotals() {
             )}
           </>
         )}
+
+        <MissingProductsModal
+          open={!!selectedSupermarket}
+          onOpenChange={(open) => !open && setSelectedSupermarket(null)}
+          listId={id || ""}
+          supermarketId={selectedSupermarket?.id || ""}
+          supermarketName={selectedSupermarket?.name || ""}
+        />
       </div>
     </Layout>
   );

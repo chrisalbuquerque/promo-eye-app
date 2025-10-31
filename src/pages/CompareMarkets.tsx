@@ -105,8 +105,15 @@ export default function CompareMarkets() {
   const marketAName = supermarkets?.find((m) => m.id === marketA)?.name || "Mercado A";
   const marketBName = supermarkets?.find((m) => m.id === marketB)?.name || "Mercado B";
 
-  const totalA = comparison?.reduce((sum: number, item: any) => sum + (item.price_a || 0), 0) || 0;
-  const totalB = comparison?.reduce((sum: number, item: any) => sum + (item.price_b || 0), 0) || 0;
+  // Calcular totais apenas para produtos que existem em ambos os mercados
+  const totalA = comparison?.reduce((sum: number, item: any) => {
+    if (item.price_a && item.price_b) return sum + item.price_a;
+    return sum;
+  }, 0) || 0;
+  const totalB = comparison?.reduce((sum: number, item: any) => {
+    if (item.price_a && item.price_b) return sum + item.price_b;
+    return sum;
+  }, 0) || 0;
 
   if (authLoading) {
     return (
@@ -257,24 +264,32 @@ export default function CompareMarkets() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div>
-                              <div>{formatCurrency(item.price_a)}</div>
-                              {item.has_wholesale_a && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Atacado: {formatCurrency(item.wholesale_price_a)} (mín. {item.wholesale_qty_a} un.)
-                                </div>
-                              )}
-                            </div>
+                            {item.price_a ? (
+                              <div>
+                                <div className="font-semibold">{formatCurrency(item.price_a)}</div>
+                                {item.has_wholesale_a && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Atacado: {formatCurrency(item.wholesale_price_a)} (mín. {item.wholesale_qty_a} un.)
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div>
-                              <div>{formatCurrency(item.price_b)}</div>
-                              {item.has_wholesale_b && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Atacado: {formatCurrency(item.wholesale_price_b)} (mín. {item.wholesale_qty_b} un.)
-                                </div>
-                              )}
-                            </div>
+                            {item.price_b ? (
+                              <div>
+                                <div className="font-semibold">{formatCurrency(item.price_b)}</div>
+                                {item.has_wholesale_b && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Atacado: {formatCurrency(item.wholesale_price_b)} (mín. {item.wholesale_qty_b} un.)
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             {getCheaperBadge(item.cheaper)}

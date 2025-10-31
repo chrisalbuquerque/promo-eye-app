@@ -348,6 +348,16 @@ export type Database = {
           product_name: string
         }[]
       }
+      rpc_get_missing_products: {
+        Args: { p_list_id: string; p_supermarket_id: string }
+        Returns: {
+          cheapest_price: number
+          cheapest_supermarket_id: string
+          cheapest_supermarket_name: string
+          product_id: string
+          product_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "user" | "admin"
