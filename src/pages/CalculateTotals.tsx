@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MissingProductsModal } from "@/components/MissingProductsModal";
+import { FoundProductsModal } from "@/components/FoundProductsModal";
 
 export default function CalculateTotals() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +29,7 @@ export default function CalculateTotals() {
   const [selectedSupermarket, setSelectedSupermarket] = useState<{
     id: string;
     name: string;
+    type: "missing" | "found";
   } | null>(null);
 
   const { data: list } = useQuery({
@@ -207,6 +209,7 @@ export default function CalculateTotals() {
                               setSelectedSupermarket({
                                 id: total.supermarket_id,
                                 name: total.supermarket_name,
+                                type: "missing",
                               })
                             }
                           >
@@ -245,7 +248,20 @@ export default function CalculateTotals() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="secondary">{total.found_count}</Badge>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 h-auto"
+                              onClick={() =>
+                                setSelectedSupermarket({
+                                  id: total.supermarket_id,
+                                  name: total.supermarket_name,
+                                  type: "found",
+                                })
+                              }
+                            >
+                              <Badge variant="secondary">{total.found_count}</Badge>
+                            </Button>
                           </TableCell>
                           <TableCell className="text-center">
                             {total.missing_count > 0 ? (
@@ -257,6 +273,7 @@ export default function CalculateTotals() {
                                   setSelectedSupermarket({
                                     id: total.supermarket_id,
                                     name: total.supermarket_name,
+                                    type: "missing",
                                   })
                                 }
                               >
@@ -296,7 +313,15 @@ export default function CalculateTotals() {
         )}
 
         <MissingProductsModal
-          open={!!selectedSupermarket}
+          open={!!selectedSupermarket && selectedSupermarket.type === "missing"}
+          onOpenChange={(open) => !open && setSelectedSupermarket(null)}
+          listId={id || ""}
+          supermarketId={selectedSupermarket?.id || ""}
+          supermarketName={selectedSupermarket?.name || ""}
+        />
+
+        <FoundProductsModal
+          open={!!selectedSupermarket && selectedSupermarket.type === "found"}
           onOpenChange={(open) => !open && setSelectedSupermarket(null)}
           listId={id || ""}
           supermarketId={selectedSupermarket?.id || ""}

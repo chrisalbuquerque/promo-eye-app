@@ -4,6 +4,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface MissingProduct {
+  product_id: string;
+  product_name: string;
+  cheapest_price: number;
+  cheapest_supermarket_name: string;
+  quantity: number;
+}
+
 interface MissingProductsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,7 +35,7 @@ export function MissingProductsModal({
         p_supermarket_id: supermarketId,
       });
       if (error) throw error;
-      return data || [];
+      return (data || []) as MissingProduct[];
     },
     enabled: open && !!listId && !!supermarketId,
   });
@@ -40,7 +48,7 @@ export function MissingProductsModal({
   };
 
   const totalMissing = missingProducts?.reduce(
-    (sum: number, item: any) => sum + (item.cheapest_price || 0),
+    (sum, item) => sum + (Number(item.cheapest_price) * Number(item.quantity)),
     0
   ) || 0;
 
@@ -79,7 +87,7 @@ export function MissingProductsModal({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {missingProducts.map((item: any) => (
+                  {missingProducts.map((item) => (
                     <TableRow key={item.product_id}>
                       <TableCell className="font-medium">
                         {item.product_name}
@@ -90,7 +98,12 @@ export function MissingProductsModal({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(item.cheapest_price)}
+                        <div className="font-semibold">
+                          {formatCurrency(Number(item.cheapest_price) * Number(item.quantity))}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatCurrency(item.cheapest_price)} × {item.quantity}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

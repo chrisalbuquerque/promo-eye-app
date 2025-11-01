@@ -354,6 +354,15 @@ export type Database = {
           wholesale_qty_b: number
         }[]
       }
+      rpc_get_found_products: {
+        Args: { p_list_id: string; p_supermarket_id: string }
+        Returns: {
+          price: number
+          product_id: string
+          product_name: string
+          quantity: number
+        }[]
+      }
       rpc_get_missing_products: {
         Args: { p_list_id: string; p_supermarket_id: string }
         Returns: {
@@ -362,6 +371,7 @@ export type Database = {
           cheapest_supermarket_name: string
           product_id: string
           product_name: string
+          quantity: number
         }[]
       }
     }
