@@ -341,11 +341,17 @@ export type Database = {
         Args: { p_list_id: string; p_market_a: string; p_market_b: string }
         Returns: {
           cheaper: string
+          has_wholesale_a: boolean
+          has_wholesale_b: boolean
           missing_in: string[]
           price_a: number
           price_b: number
           product_id: string
           product_name: string
+          wholesale_price_a: number
+          wholesale_price_b: number
+          wholesale_qty_a: number
+          wholesale_qty_b: number
         }[]
       }
       rpc_get_missing_products: {

@@ -32,8 +32,10 @@ export default function AdminPrices() {
     supermarket_id: "",
     product_id: "",
     price: "",
-    unit_size: "",
+    price_type: "varejo",
+    min_quantity: "1",
   });
+  const [productSearch, setProductSearch] = useState("");
 
   const { data: supermarkets } = useQuery({
     queryKey: ["supermarkets"],
@@ -50,13 +52,18 @@ export default function AdminPrices() {
   });
 
   const { data: products } = useQuery({
-    queryKey: ["products-list"],
+    queryKey: ["products-list", productSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("product_master")
-        .select("id, name, brand")
-        .order("name")
-        .limit(100);
+        .select("id, name, brand, ean")
+        .order("name");
+      
+      if (productSearch) {
+        query = query.or(`name.ilike.%${productSearch}%,ean.eq.${productSearch}`);
+      }
+      
+      const { data, error } = await query.limit(50);
       if (error) throw error;
       return data;
     },
@@ -87,7 +94,8 @@ export default function AdminPrices() {
         supermarket_id: data.supermarket_id,
         product_id: data.product_id,
         price: parseFloat(data.price),
-        unit_size: data.unit_size || null,
+        price_type: data.price_type,
+        min_quantity: data.price_type === "atacado" ? parseInt(data.min_quantity) : 1,
         source: "manual",
       });
       if (error) throw error;
@@ -118,7 +126,8 @@ export default function AdminPrices() {
   });
 
   const resetForm = () => {
-    setFormData({ supermarket_id: "", product_id: "", price: "", unit_size: "" });
+    setFormData({ supermarket_id: "", product_id: "", price: "", price_type: "varejo", min_quantity: "1" });
+    setProductSearch("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -184,22 +193,47 @@ export default function AdminPrices() {
                 </div>
                 <div>
                   <Label htmlFor="product">Produto *</Label>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Buscar por nome ou EAN"
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                    />
+                    <Select
+                      value={formData.product_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, product_id: value })
+                      }
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products?.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} {p.brand && `- ${p.brand}`} {p.ean && `(${p.ean})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="price_type">Tipo de Preço *</Label>
                   <Select
-                    value={formData.product_id}
+                    value={formData.price_type}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, product_id: value })
+                      setFormData({ ...formData, price_type: value })
                     }
                     required
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {products?.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} {p.brand && `- ${p.brand}`}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="varejo">Varejo</SelectItem>
+                      <SelectItem value="atacado">Atacado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -215,15 +249,19 @@ export default function AdminPrices() {
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="unit_size">Tamanho/Unidade</Label>
-                  <Input
-                    id="unit_size"
-                    value={formData.unit_size}
-                    onChange={(e) => setFormData({ ...formData, unit_size: e.target.value })}
-                    placeholder="Ex: 1kg, 500ml"
-                  />
-                </div>
+                {formData.price_type === "atacado" && (
+                  <div>
+                    <Label htmlFor="min_quantity">Quantidade Mínima *</Label>
+                    <Input
+                      id="min_quantity"
+                      type="number"
+                      min="1"
+                      value={formData.min_quantity}
+                      onChange={(e) => setFormData({ ...formData, min_quantity: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
                 <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? "Salvando..." : "Salvar"}
                 </Button>
@@ -255,7 +293,8 @@ export default function AdminPrices() {
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         {price.supermarkets?.name} • R$ {parseFloat(price.price).toFixed(2)}
-                        {price.unit_size && ` • ${price.unit_size}`}
+                        {price.price_type === "atacado" && ` • Atacado (mín. ${price.min_quantity} un.)`}
+                        {price.price_type === "varejo" && " • Varejo"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(price.captured_at).toLocaleDateString("pt-BR")}

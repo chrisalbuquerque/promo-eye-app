@@ -178,12 +178,12 @@ export default function AdminProducts() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="unit">Unidade</Label>
+                  <Label htmlFor="unit">Tamanho/Unidade</Label>
                   <Input
                     id="unit"
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    placeholder="Ex: kg, un, l"
+                    placeholder="Ex: 1kg, 500ml, 2L"
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={saveMutation.isPending}>

@@ -88,7 +88,7 @@ serve(async (req) => {
                 content: [
                   {
                     type: 'text',
-                    text: 'Analise esta imagem de prateleira de supermercado ou panfleto. Extraia todos os produtos visíveis com seus nomes, marcas e preços. IMPORTANTE: Diferencie entre preços de ATACADO (necessita quantidade mínima) e VAREJO (preço unitário). Retorne no formato JSON com array "items", onde cada item tem: "name" (nome do produto), "brand" (marca), "retail_price" (preço varejo em número), "wholesale_price" (preço atacado em número ou null), "min_wholesale_qty" (quantidade mínima para atacado ou null), "confidence" (confiança de 0 a 1). Se não conseguir identificar algum campo, use null. IGNORE outros valores que não sejam atacado ou varejo.'
+                    text: 'Analise esta imagem de prateleira de supermercado ou panfleto. Extraia todos os produtos visíveis com seus nomes, marcas, preços, EAN e tamanho/unidade. IMPORTANTE: Diferencie entre preços de ATACADO (necessita quantidade mínima) e VAREJO (preço unitário). Retorne no formato JSON com array "items", onde cada item tem: "name" (nome do produto), "brand" (marca), "retail_price" (preço varejo em número), "wholesale_price" (preço atacado em número ou null), "min_wholesale_qty" (quantidade mínima para atacado ou null), "ean" (código de barras EAN de 13 ou 8 dígitos, apenas números), "unit_size" (tamanho/unidade como "1kg", "500ml", "2L", etc.), "confidence" (confiança de 0 a 1). Se não conseguir identificar algum campo, use null. IGNORE outros valores que não sejam atacado ou varejo.'
                   },
                   {
                     type: 'image_url',
@@ -171,6 +171,8 @@ serve(async (req) => {
                 .insert({
                   name: item.name,
                   brand: item.brand || null,
+                  ean: item.ean || null,
+                  unit: item.unit_size || null,
                 })
                 .select()
                 .single();
@@ -232,6 +234,8 @@ serve(async (req) => {
                   min_wholesale_qty: item.min_wholesale_qty,
                   extracted_name: item.name,
                   extracted_brand: item.brand,
+                  extracted_ean: item.ean,
+                  extracted_unit_size: item.unit_size,
                   supermarket_id: supermarketId,
                 }
               });
