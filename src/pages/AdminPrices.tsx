@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export default function AdminPrices() {
   const { isAdmin } = useAuth();
@@ -36,6 +49,7 @@ export default function AdminPrices() {
     min_quantity: "1",
   });
   const [productSearch, setProductSearch] = useState("");
+  const [productOpen, setProductOpen] = useState(false);
 
   const { data: supermarkets } = useQuery({
     queryKey: ["supermarkets"],
@@ -193,31 +207,61 @@ export default function AdminPrices() {
                 </div>
                 <div>
                   <Label htmlFor="product">Produto *</Label>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Buscar por nome ou EAN"
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                    />
-                    <Select
-                      value={formData.product_id}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, product_id: value })
-                      }
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} {p.brand && `- ${p.brand}`} {p.ean && `(${p.ean})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Popover open={productOpen} onOpenChange={setProductOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={productOpen}
+                        className="w-full justify-between"
+                      >
+                        {formData.product_id
+                          ? products?.find((p) => p.id === formData.product_id)
+                              ? `${products.find((p) => p.id === formData.product_id)!.name}${
+                                  products.find((p) => p.id === formData.product_id)!.brand
+                                    ? ` - ${products.find((p) => p.id === formData.product_id)!.brand}`
+                                    : ""
+                                }${
+                                  products.find((p) => p.id === formData.product_id)!.ean
+                                    ? ` (${products.find((p) => p.id === formData.product_id)!.ean})`
+                                    : ""
+                                }`
+                              : "Selecione um produto"
+                          : "Selecione um produto"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Buscar por nome ou EAN..."
+                          value={productSearch}
+                          onValueChange={setProductSearch}
+                        />
+                        <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {products?.map((p) => (
+                            <CommandItem
+                              key={p.id}
+                              value={`${p.name} ${p.brand || ""} ${p.ean || ""}`}
+                              onSelect={() => {
+                                setFormData({ ...formData, product_id: p.id });
+                                setProductOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.product_id === p.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {p.name} {p.brand && `- ${p.brand}`} {p.ean && `(${p.ean})`}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label htmlFor="price_type">Tipo de Preço *</Label>
