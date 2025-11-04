@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,27 @@ export default function AdminProducts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Verificar se produto está em uso
+      const { data: pricesInUse } = await supabase
+        .from("sku_price")
+        .select("id")
+        .eq("product_id", id)
+        .limit(1);
+      
+      const { data: listItemsInUse } = await supabase
+        .from("shopping_list_item")
+        .select("id")
+        .eq("product_id", id)
+        .limit(1);
+      
+      if (pricesInUse && pricesInUse.length > 0) {
+        throw new Error("Produto possui preços cadastrados. Remova os preços primeiro.");
+      }
+      
+      if (listItemsInUse && listItemsInUse.length > 0) {
+        throw new Error("Produto está em listas de compras. Remova das listas primeiro.");
+      }
+      
       const { error } = await supabase.from("product_master").delete().eq("id", id);
       if (error) throw error;
     },
@@ -80,8 +102,8 @@ export default function AdminProducts() {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
       toast.success("Produto removido");
     },
-    onError: () => {
-      toast.error("Erro ao remover produto");
+    onError: (error: any) => {
+      toast.error(error.message || "Erro ao remover produto");
     },
   });
 
@@ -229,8 +251,15 @@ export default function AdminProducts() {
                     key={product.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
-                    <div>
-                      <h3 className="font-semibold">{product.name}</h3>
+                  <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{product.name}</h3>
+                        {!product.ean && (
+                          <Badge variant="destructive" className="text-xs">
+                            Sem EAN
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {product.brand && `Marca: ${product.brand}`}
                         {product.ean && ` • EAN: ${product.ean}`}

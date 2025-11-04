@@ -143,12 +143,36 @@ serve(async (req) => {
             let productId = null;
             const normalizedName = item.name?.toLowerCase().trim();
             const normalizedBrand = item.brand?.toLowerCase().trim();
+            const eanCode = item.ean?.toString().trim();
 
-            // Buscar produto existente por nome e marca
-            if (normalizedName) {
+            // PRIORIDADE 1: Buscar por EAN (evita duplicação)
+            if (eanCode && (eanCode.length === 13 || eanCode.length === 8)) {
+              const { data: productByEan } = await supabase
+                .from('product_master')
+                .select('id, name, brand, unit')
+                .eq('ean', eanCode)
+                .single();
+
+              if (productByEan) {
+                productId = productByEan.id;
+                console.log(`Produto encontrado por EAN: ${eanCode} -> ${productByEan.name}`);
+                
+                // Atualizar unit_size se não estava preenchido
+                if (!productByEan.unit && item.unit_size) {
+                  await supabase
+                    .from('product_master')
+                    .update({ unit: item.unit_size })
+                    .eq('id', productId);
+                  console.log(`Unit_size atualizado para produto ${productId}: ${item.unit_size}`);
+                }
+              }
+            }
+
+            // PRIORIDADE 2: Buscar por nome e marca (se não encontrou por EAN)
+            if (!productId && normalizedName) {
               const { data: existingProducts } = await supabase
                 .from('product_master')
-                .select('id, name, brand')
+                .select('id, name, brand, ean')
                 .ilike('name', `%${normalizedName}%`);
 
               // Encontrar melhor match considerando marca se disponível
@@ -157,21 +181,41 @@ serve(async (req) => {
                   const exactMatch = existingProducts.find(p => 
                     p.brand?.toLowerCase().includes(normalizedBrand)
                   );
-                  productId = exactMatch?.id || existingProducts[0].id;
+                  if (exactMatch) {
+                    productId = exactMatch.id;
+                    // Atualizar EAN se produto não tinha
+                    if (!exactMatch.ean && eanCode) {
+                      await supabase
+                        .from('product_master')
+                        .update({ ean: eanCode, unit: item.unit_size || null })
+                        .eq('id', productId);
+                      console.log(`EAN e unit_size atualizados para produto ${productId}: ${eanCode}`);
+                    }
+                  } else {
+                    productId = existingProducts[0].id;
+                  }
                 } else {
                   productId = existingProducts[0].id;
+                  // Atualizar EAN se produto não tinha
+                  if (!existingProducts[0].ean && eanCode) {
+                    await supabase
+                      .from('product_master')
+                      .update({ ean: eanCode, unit: item.unit_size || null })
+                      .eq('id', productId);
+                    console.log(`EAN e unit_size atualizados para produto ${productId}: ${eanCode}`);
+                  }
                 }
               }
             }
 
-            // Se produto não existe e temos informações suficientes, criar novo
+            // CRIAR NOVO produto apenas se não encontrou por EAN nem por nome
             if (!productId && normalizedName && item.confidence >= 0.7) {
               const { data: newProduct, error: createError } = await supabase
                 .from('product_master')
                 .insert({
                   name: item.name,
                   brand: item.brand || null,
-                  ean: item.ean || null,
+                  ean: eanCode || null,
                   unit: item.unit_size || null,
                 })
                 .select()
@@ -260,14 +304,15 @@ serve(async (req) => {
     }
 
     // Atualizar status final do lote
-    const finalStatus = errors.length === 0 ? 'done' : 'error';
+    const finalStatus = processedCount > 0 ? 'done' : 'error';
     await supabase
       .from('ocr_batch')
       .update({ 
         status: finalStatus,
-        meta: errors.length > 0 ? { errors } : null
       })
       .eq('id', batchId);
+
+    console.log(`Processamento concluído. Status: ${finalStatus}, Processados: ${processedCount}/${imageFiles.length}`);
 
     return new Response(
       JSON.stringify({ 
@@ -284,6 +329,24 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Erro no processamento OCR:', error);
+    
+    // Garantir que o status seja atualizado mesmo em caso de erro
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const { batchId } = await req.json();
+      if (batchId) {
+        await supabase
+          .from('ocr_batch')
+          .update({ status: 'error' })
+          .eq('id', batchId);
+      }
+    } catch (updateError) {
+      console.error('Erro ao atualizar status do lote:', updateError);
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
