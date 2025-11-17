@@ -9,25 +9,35 @@ import { Upload, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function AdminOCR() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [selectedSupermarket, setSelectedSupermarket] = useState<string>("");
+  const [batchesPage, setBatchesPage] = useState(0);
+  const [itemsPage, setItemsPage] = useState(0);
+  const itemsPerPage = 10;
 
-  const { data: batches, isLoading } = useQuery({
-    queryKey: ["admin-ocr-batches"],
+  const { data: batchesData, isLoading } = useQuery({
+    queryKey: ["admin-ocr-batches", batchesPage],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const from = batchesPage * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      const { data, error, count } = await supabase
         .from("ocr_batch")
-        .select("*")
+        .select("*", { count: 'exact' })
         .order("created_at", { ascending: false })
-        .limit(20);
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { data, count };
     },
     enabled: isAdmin,
   });
+
+  const batches = batchesData?.data || [];
+  const batchesCount = batchesData?.count || 0;
+  const totalBatchesPages = Math.ceil(batchesCount / itemsPerPage);
 
   const { data: supermarkets } = useQuery({
     queryKey: ["supermarkets"],
@@ -43,23 +53,29 @@ export default function AdminOCR() {
     enabled: isAdmin,
   });
 
-  const { data: items } = useQuery({
-    queryKey: ["admin-ocr-items"],
+  const { data: itemsData } = useQuery({
+    queryKey: ["admin-ocr-items", itemsPage],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const from = itemsPage * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      const { data, error, count } = await supabase
         .from("ocr_item")
         .select(`
           *,
           product_master(name, brand),
           ocr_batch(status, created_at)
-        `)
+        `, { count: 'exact' })
         .order("id", { ascending: false })
-        .limit(50);
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { data, count };
     },
     enabled: isAdmin,
   });
+
+  const items = itemsData?.data || [];
+  const itemsCount = itemsData?.count || 0;
+  const totalItemsPages = Math.ceil(itemsCount / itemsPerPage);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -234,24 +250,51 @@ export default function AdminOCR() {
             ) : !batches || batches.length === 0 ? (
               <p className="text-muted-foreground">Nenhum lote enviado</p>
             ) : (
-              <div className="space-y-2">
-                {batches.map((batch) => (
-                  <div
-                    key={batch.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">Lote {batch.id.slice(0, 8)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(batch.created_at).toLocaleString("pt-BR")}
-                      </p>
+              <>
+                <div className="space-y-2">
+                  {batches.map((batch) => (
+                    <div
+                      key={batch.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">Lote {batch.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(batch.created_at).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <Badge variant={batch.status === "done" ? "success" : "secondary"}>
+                        {batch.status}
+                      </Badge>
                     </div>
-                    <Badge variant={batch.status === "done" ? "success" : "secondary"}>
-                      {batch.status}
-                    </Badge>
+                  ))}
+                </div>
+                {totalBatchesPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBatchesPage(p => Math.max(0, p - 1))}
+                      disabled={batchesPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {batchesPage + 1} de {totalBatchesPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBatchesPage(p => Math.min(totalBatchesPages - 1, p + 1))}
+                      disabled={batchesPage >= totalBatchesPages - 1}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -264,33 +307,60 @@ export default function AdminOCR() {
             {!items || items.length === 0 ? (
               <p className="text-muted-foreground">Nenhum item para revisar</p>
             ) : (
-              <div className="space-y-2">
-                {items.map((item: any) => (
-                  <div key={item.id} className="p-4 border rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-sm">
-                          Texto: {item.raw_text || "N/A"}
-                        </p>
-                        {item.product_master && (
-                          <p className="text-sm text-muted-foreground">
-                            Produto: {item.product_master.name}
-                            {item.product_master.brand && ` - ${item.product_master.brand}`}
+              <>
+                <div className="space-y-2">
+                  {items.map((item: any) => (
+                    <div key={item.id} className="p-4 border rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-sm">
+                            Texto: {item.raw_text || "N/A"}
                           </p>
-                        )}
-                        {item.confidence && (
-                          <p className="text-xs text-muted-foreground">
-                            Confiança: {(item.confidence * 100).toFixed(0)}%
-                          </p>
-                        )}
+                          {item.product_master && (
+                            <p className="text-sm text-muted-foreground">
+                              Produto: {item.product_master.name}
+                              {item.product_master.brand && ` - ${item.product_master.brand}`}
+                            </p>
+                          )}
+                          {item.confidence && (
+                            <p className="text-xs text-muted-foreground">
+                              Confiança: {(item.confidence * 100).toFixed(0)}%
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={item.matched_product_id ? "success" : "secondary"}>
+                          {item.matched_product_id ? "Vinculado" : "Pendente"}
+                        </Badge>
                       </div>
-                      <Badge variant={item.matched_product_id ? "success" : "secondary"}>
-                        {item.matched_product_id ? "Vinculado" : "Pendente"}
-                      </Badge>
                     </div>
+                  ))}
+                </div>
+                {totalItemsPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setItemsPage(p => Math.max(0, p - 1))}
+                      disabled={itemsPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {itemsPage + 1} de {totalItemsPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setItemsPage(p => Math.min(totalItemsPages - 1, p + 1))}
+                      disabled={itemsPage >= totalItemsPages - 1}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

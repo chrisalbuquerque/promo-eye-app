@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Trash2, Plus, Check, ChevronsUpDown, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,8 @@ export default function AdminPrices() {
   });
   const [productSearch, setProductSearch] = useState("");
   const [productOpen, setProductOpen] = useState(false);
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState<string | null>(null);
+  const [productDetailsOpen, setProductDetailsOpen] = useState(false);
 
   const { data: supermarkets } = useQuery({
     queryKey: ["supermarkets"],
@@ -70,7 +72,7 @@ export default function AdminPrices() {
     queryFn: async () => {
       let query = supabase
         .from("product_master")
-        .select("id, name, brand, ean")
+        .select("id, name, brand, ean, category, unit")
         .order("name");
       
       if (productSearch) {
@@ -84,6 +86,21 @@ export default function AdminPrices() {
     enabled: isAdmin,
   });
 
+  const { data: productDetails } = useQuery({
+    queryKey: ["product-details", selectedProductForDetails],
+    queryFn: async () => {
+      if (!selectedProductForDetails) return null;
+      const { data, error } = await supabase
+        .from("product_master")
+        .select("*")
+        .eq("id", selectedProductForDetails)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedProductForDetails && isAdmin,
+  });
+
   const { data: prices, isLoading } = useQuery({
     queryKey: ["admin-prices"],
     queryFn: async () => {
@@ -92,7 +109,7 @@ export default function AdminPrices() {
         .select(`
           *,
           supermarkets(name),
-          product_master(name, brand)
+          product_master(id, name, brand)
         `)
         .order("captured_at", { ascending: false })
         .limit(50);
@@ -330,8 +347,14 @@ export default function AdminPrices() {
                     key={price.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
-                    <div>
-                      <h3 className="font-semibold">
+                    <div className="flex-1">
+                      <h3 
+                        className="font-semibold cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => {
+                          setSelectedProductForDetails(price.product_master?.id);
+                          setProductDetailsOpen(true);
+                        }}
+                      >
                         {price.product_master?.name}
                         {price.product_master?.brand && ` - ${price.product_master.brand}`}
                       </h3>
@@ -344,23 +367,69 @@ export default function AdminPrices() {
                         {new Date(price.captured_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm("Remover este preço?")) {
-                          deleteMutation.mutate(price.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedProductForDetails(price.product_master?.id);
+                          setProductDetailsOpen(true);
+                        }}
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => {
+                          if (confirm("Remover este preço?")) {
+                            deleteMutation.mutate(price.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={productDetailsOpen} onOpenChange={setProductDetailsOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Detalhes do Produto</DialogTitle>
+            </DialogHeader>
+            {productDetails ? (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">Nome</Label>
+                  <p className="text-sm mt-1">{productDetails.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Marca</Label>
+                  <p className="text-sm mt-1">{productDetails.brand || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">EAN</Label>
+                  <p className="text-sm mt-1">{productDetails.ean || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Categoria</Label>
+                  <p className="text-sm mt-1">{productDetails.category || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Tamanho</Label>
+                  <p className="text-sm mt-1">{productDetails.unit || "N/A"}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
